@@ -50,13 +50,22 @@ class StateWait(State):
         State.__init__(self, 'wait')
 
     def entry_actions(self):
+        #self.app.previous_picture = pibooth.pictures.get_image("~/pibooth/pibooth/qrcode.png")
+
         self.app.window.show_intro(self.app.previous_picture, self.app.printer.is_installed() and
                                    self.app.nbr_printed < self.app.config.getint('PRINTER', 'max_duplicates'))
+        #self.app.window.show_intro(im, 0)
         self.app.led_picture.blink()
         if self.app.previous_picture_file and self.app.printer.is_installed():
             self.app.led_print.blink()
+        #pr
+        if self.app.previous_picture_file:
+            LOGGER.debug("Upload to webspace" + self.app.previous_picture_file)
+            cmd = "bash ~/pibooth/upload.sh " + os.path.relpath(self.app.previous_picture_file, "/home/pi/Pictures/pibooth/") 
+            os.system(cmd)
 
     def do_actions(self, events):
+
         if self.app.find_print_event(events) and self.app.previous_picture_file and self.app.printer.is_installed():
 
             if self.app.nbr_printed >= self.app.config.getint('PRINTER', 'max_duplicates'):
@@ -162,7 +171,8 @@ class StateCapture(State):
         self.app.nbr_printed = 0
         self.app.previous_picture = None
         self.app.previous_picture_file = None
-        self.app.dirname = osp.join(self.app.savedir, time.strftime("%Y-%m-%d-%H-%M-%S"))
+        self.app.dirname = osp.join(self.app.savedir, time.strftime("%y%m%d%H%M"))
+        #self.app.dirname = osp.join(self.app.savedir, time.strftime("%Y-%m-%d-%H-%M"))
         os.makedirs(self.app.dirname)
         self.app.led_preview.switch_on()
 
@@ -227,7 +237,12 @@ class StateProcessing(State):
             self.app.previous_picture = concatenate_pictures(
                 self.app.camera.get_captures(), footer_texts, bg_color, text_color, orientation)
 
-        self.app.previous_picture_file = osp.join(self.app.dirname, time.strftime("%Y-%m-%d-%H-%M-%S") + "_ptb.jpg")
+        self.app.previous_picture_file = osp.join(self.app.dirname, time.strftime("%y%m%d%H%M") + ".jpg")
+        #self.app.previous_picture_file = osp.join(self.app.dirname, time.strftime("%Y-%m-%d-%H-%M") + ".jpg")
+        # pr
+        #LOGGER.debug("generate qrcode")
+        #cmd = "qr " + self.app.previous_picture_file + " > ~/qrcode.png"
+        #os.system(cmd)
         with timeit("Save the merged picture in {}".format(self.app.previous_picture_file)):
             self.app.previous_picture.save(self.app.previous_picture_file)
 
@@ -278,6 +293,7 @@ class StateFinish(State):
 
     def entry_actions(self):
         self.app.window.show_finished()
+
         self.timer.start()
 
     def validate_transition(self, events):
