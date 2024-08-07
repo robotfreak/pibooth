@@ -219,6 +219,27 @@ class PtbWindow(object):
         self._update_background(background.FinishedBackground())
         pygame.display.update()
 
+
+    def show_finished_qr(self):
+        """Show finished view with QR code.
+        """
+
+        qr_image = Image.open("/home/pi/qrcode.png")
+        LOGGER.info("QR image mode: " + qr_image.mode)
+        if qr_image.mode != 'RGB':
+            if qr_image.mode == 'I':
+                from PIL import ImageMath
+                qr_image = ImageMath.eval('im/256', {'im': qr_image})
+            if qr_image.mode == 'P':
+                qr_image = qr_image.convert('RGBA')
+            else:
+                qr_image = qr_image.convert('RGB')
+
+        self._update_foreground(qr_image, self.RIGHT, False)
+        self._update_background(background.FinishedBackground())
+        pygame.display.update()
+
+
     @contextlib.contextmanager
     def flash(self, count):
         """Flash the window content.

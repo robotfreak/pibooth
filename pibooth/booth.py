@@ -5,6 +5,7 @@
 """
 
 import os
+import subprocess
 import time
 import shutil
 import logging
@@ -50,19 +51,44 @@ class StateWait(State):
         State.__init__(self, 'wait')
 
     def entry_actions(self):
-        #self.app.previous_picture = pibooth.pictures.get_image("~/pibooth/pibooth/qrcode.png")
+        #self.app.previous_picture = pibooth.pictures.get_image("~/qrcode.png")
+
+        #self.app.previous_picture = Image.open("/home/pi/qrcode.png")
+
+        qr_image = Image.open("/home/pi/qrcode.png")
+        LOGGER.info("QR image mode: " + qr_image.mode)
+        if qr_image.mode != 'RGB':
+            if qr_image.mode == 'I':
+                from PIL import ImageMath
+                qr_image = ImageMath.eval('im/256', {'im': qr_image})
+            if qr_image.mode == 'P':
+                qr_image = qr_image.convert('RGBA')
+            else:
+                qr_image = qr_image.convert('RGB')
+
+        self.app.previous_picture = qr_image
+
+
+#        self.app.window.show_finished_qr()
 
         self.app.window.show_intro(self.app.previous_picture, self.app.printer.is_installed() and
                                    self.app.nbr_printed < self.app.config.getint('PRINTER', 'max_duplicates'))
-        #self.app.window.show_intro(im, 0)
+#        self.app.window.show_intro(im, 0)
+
+
         self.app.led_picture.blink()
         if self.app.previous_picture_file and self.app.printer.is_installed():
             self.app.led_print.blink()
+
         #pr
-        if self.app.previous_picture_file:
-            LOGGER.debug("Upload to webspace" + self.app.previous_picture_file)
-            cmd = "bash ~/pibooth/upload.sh " + os.path.relpath(self.app.previous_picture_file, "/home/pi/Pictures/pibooth/") 
-            os.system(cmd)
+#        LOGGER.debug("Now upload and show QR")
+#        if self.app.previous_picture_file:
+#
+#            LOGGER.debug("Show QR Code for " + self.app.previous_picture_file)
+#            cmd = "bash ~/pibooth/qrcode.sh " + os.path.relpath(self.app.previous_picture_file, "/home/pi/Pictures/pibooth/") 
+#            os.system(cmd)
+
+            #self.app.window.show_finished_qr()
 
     def do_actions(self, events):
 
@@ -237,9 +263,16 @@ class StateProcessing(State):
             self.app.previous_picture = concatenate_pictures(
                 self.app.camera.get_captures(), footer_texts, bg_color, text_color, orientation)
 
+
         self.app.previous_picture_file = osp.join(self.app.dirname, time.strftime("%y%m%d%H%M") + ".jpg")
         #self.app.previous_picture_file = osp.join(self.app.dirname, time.strftime("%Y-%m-%d-%H-%M") + ".jpg")
         # pr
+
+        LOGGER.info("Show QR Code for " + self.app.previous_picture_file)
+        cmd = "bash ~/pibooth/qrcode.sh " + os.path.relpath(self.app.previous_picture_file, "/home/pi/Pictures/pibooth/") 
+        os.system(cmd)
+
+
         #LOGGER.debug("generate qrcode")
         #cmd = "qr " + self.app.previous_picture_file + " > ~/qrcode.png"
         #os.system(cmd)
@@ -292,6 +325,10 @@ class StateFinish(State):
         self.timer = PoolingTimer(timeout)
 
     def entry_actions(self):
+        LOGGER.info("Upload to webspace " + self.app.previous_picture_file)
+        cmd= "bash ~/pibooth/upload-file.sh " + os.path.relpath(self.app.previous_picture_file, "/home/pi/Pictures/pibooth/")
+        self.upload_process = subprocess.Popen(cmd, shell=True)
+
         self.app.window.show_finished()
 
         self.timer.start()
